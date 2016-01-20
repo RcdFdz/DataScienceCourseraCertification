@@ -1,0 +1,167 @@
+---
+title: "Most Harmful Weather Events To Population Health With Greatest Economic Consequences"
+output: html_document
+---
+
+### Synopsis
+
+This study aim is to identify which types of events are most harmful with respect to population health and which types of events have the greatest economic consequences.The analysis is based on the U.S. National Oceanic and Atmospheric Administration’s (NOAA) storm database and has concluded that storms and flood events can cause the most harmful public health and economics problems.
+
+As summary:
+
+* In health tornado has resulted the most harmful.
+* Flood has resulted the most important event with economic consequences.
+
+### Data Processing
+
+The following libraris are been used in this study
+
+```{r, echo=TRUE, results=TRUE, cache=TRUE}
+library(data.table)
+library(ggplot2)
+library(scales)
+```
+
+Downloading and loading the data from the source
+
+```{r, echo=TRUE, results=TRUE, cache=TRUE}
+### get the url
+fileUrl <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+### check if the file exist
+if (!file.exists("./data-StormData.csv.bz2")){
+  download.file(fileUrl,destfile="./data-StormData.csv.bz2")
+}
+```
+
+#### Reading data
+The data has to be load from the file to the variable `raw_data`.
+
+```{r, echo=TRUE, results=TRUE, cache=TRUE}
+### read data from the file
+raw_data <- read.csv("data-StormData.csv.bz2", header=TRUE, na.strings="")
+```
+
+For simplify the dataset we proceed to select the relevant data
+
+```{r, echo=TRUE, results=TRUE, cache=TRUE}
+### check the data structure
+str(raw_data)
+### select the relevant data
+relevant_data <- raw_data[, c("BGN_DATE", "EVTYPE", "FATALITIES", "INJURIES", 
+                      "PROPDMG", "PROPDMGEXP", "CROPDMG", "CROPDMGEXP")]
+```
+
+The variable `BGN_DATE` need to be cast to date
+
+```{r, echo=TRUE, results=TRUE, cache=TRUE}
+### cast to date
+relevant_data$BGN_DATE <- as.Date(relevant_data$BGN_DATE, "%m/%d/%Y %H:%M:%S")
+### check the data structure
+str(relevant_data[, "BGN_DATE"])
+```
+
+Once the data has been processed we perform a summary of the relevant columns and check for negatives and null values. 
+
+```{r, echo=TRUE, results=TRUE, cache=TRUE}
+### sumary data relevant information
+summary(relevant_data)
+```
+
+#### Analysis
+
+1. Across the United States, which types of events are most harmful with respect to population health?
+
+Fatalities and injuries are two mesurements that reflect the harmfulness of an event referenced to the population health. We subset and sum them in orderto find out the most harmful type of event.
+
+```{r, echo=TRUE, results=TRUE, cache=TRUE}
+### subset and sum fatalities and injures
+subset_fatalities <- aggregate(FATALITIES ~ EVTYPE, data = relevant_data, FUN = sum)
+subset_injuries <- aggregate(INJURIES ~ EVTYPE, data = relevant_data, FUN = sum)
+```
+
+After susbest and process the data we are able to plot the fatalities and injures so we can identify the top 10 most harmful events.
+
+```{r, echo=TRUE, results=TRUE, cache=TRUE}
+### order the data for fatalities and injuries
+data_fatalities <- subset_fatalities[order(subset_fatalities$FATALITIES, decreasing = T), ]
+data_injuries <- subset_injuries[order(subset_injuries$INJURIES, decreasing = T), ]
+```
+
+2. Across the United States, which types of events have the greatest economic consequences?
+
+We need to change the cast of the values to `numeric` so we can properly plot them, following the code that help us to read the absolute value and the exponent:
+* H,h = hundreds = 100
+* K,k = kilos = thousands = 1,000
+* M,m = millions = 1,000,000
+* B,b = billions = 1,000,000,000
+
+For our porpouse we will plot our data in Millions so `millions = 1`:
+
+```{r, echo=TRUE, results=TRUE, cache=TRUE}
+### create a new column with the proper value for B,M,K,H and others
+relevant_data$PROPDMG[relevant_data$PROPDMGEXP %in% "B"] <- 
+      relevant_data$PROPDMG[relevant_data$PROPDMGEXP %in% "B"] * 10^3
+relevant_data$PROPDMG[relevant_data$PROPDMGEXP %in% c("M", "m")] <- 
+      relevant_data$PROPDMG[relevant_data$PROPDMGEXP %in% c("M", "m")] * 1
+relevant_data$PROPDMG[relevant_data$PROPDMGEXP %in% c("K")] <- 
+      relevant_data$PROPDMG[relevant_data$PROPDMGEXP %in% c("K")] * 10^(-3)
+relevant_data$PROPDMG[relevant_data$PROPDMGEXP %in% c("H", "h")] <- 
+      relevant_data$PROPDMG[relevant_data$PROPDMGEXP %in% c("H", "h")] * 10^(-4)
+relevant_data$PROPDMG[!(relevant_data$PROPDMGEXP %in% c("B", "M", "m", "K", "H", "h"))] <- 
+      relevant_data$PROPDMG[!(relevant_data$PROPDMGEXP %in% c("B", "M", "m", "K", "H", "h"))] * 10^(-6)
+
+relevant_data$CROPDMG[relevant_data$CROPDMGEXP %in% "B"] <- 
+      relevant_data$CROPDMG[relevant_data$CROPDMGEXP %in% "B"] * 10^3
+relevant_data$CROPDMG[relevant_data$CROPDMGEXP %in% c("M", "m")] <-
+      relevant_data$CROPDMG[relevant_data$CROPDMGEXP %in% c("M", "m")] * 1
+relevant_data$CROPDMG[relevant_data$CROPDMGEXP %in% c("K", "k")] <-
+      relevant_data$CROPDMG[relevant_data$CROPDMGEXP %in% c("K", "k")] * 10^(-3)
+relevant_data$CROPDMG[!(relevant_data$CROPDMGEXP %in% c("B", "M", "m", "K", "k"))] <-
+      relevant_data$CROPDMG[!(relevant_data$CROPDMGEXP %in% c("B", "M", "m", "K", "k"))] * 10^(-6)
+```
+
+Finally we aggregate both property and crop damages and order the data to find the greatest economic consequences once ploted the Top 10.
+
+```{r, echo=TRUE, results=TRUE, cache=TRUE}
+### both damages value
+economical_damage <- relevant_data$PROPDMG + relevant_data$CROPDMG 
+### sum by type  to get the total
+eco_dmg_total <- aggregate(economical_damage ~ relevant_data$EVTYPE, FUN = sum)
+### order the data
+eco_dmg_tot_ordered <- eco_dmg_total[order(eco_dmg_total$economical_damage, decreasing = T), ]
+### add column name
+names(eco_dmg_tot_ordered)[1] <- "evtype"
+```
+
+### Results
+1. Across the United States, which types of events are most harmful with respect to population health?
+
+```{r, echo=TRUE, results=TRUE, cache=TRUE}
+
+### plot the top 10 fatalities data
+ggplot(data_fatalities[1:10, ], aes(x = reorder(EVTYPE, FATALITIES), y = FATALITIES)) + theme_bw() +
+    geom_bar(stat = "identity", fill = I("lightblue")) + coord_flip() +
+    labs( title = "Fig 1. Top 10 - Events Causing Deaths", x = "Event", y = "Fatalities" )
+### plot the top 10 injuries data
+ggplot(data_injuries[1:10, ], aes(x = reorder(EVTYPE, INJURIES), y = INJURIES)) + theme_bw() + 
+    geom_bar(stat = "identity", fill = I("lightblue")) + coord_flip() +
+    labs( title = "Fig 2. Top 10 - Events Causing Injuries", x = "Event", y = "Injuries" )
+```
+
+As has been shown in the Figures 1 and 2 Tornado is the most harmful event type which has led to 5633 deaths and 91346 injuries from 1950 to Novemver 2011. Consider also that excessive heat and flash flood are ranked in the top three for causing deaths and tstm. wind and flood also for causing injuries.
+
+Moreover lightning are also ranked top five, in relatioin to fatalities or injuries.
+
+2. Across the United States, which types of events have the greatest economic consequences?
+
+```{r, echo=TRUE, results=TRUE, cache=TRUE}
+### plot the results
+ggplot(eco_dmg_tot_ordered[1:10, ], aes(x = reorder(evtype, economical_damage), y = economical_damage)) + theme_bw() + 
+    geom_bar(stat = "identity", fill = I("lightblue")) + coord_flip() +
+    labs( title = "Fig 3. Top 10 - Events Causing Economical Damages",
+          x = "Event",
+          y = "Economical Damages ($M)" )
+```
+
+As has been shown in the Figure 3 Flood have the gratest economic consequnces with aprog 150B followed by Hurricane/Typhon with 719M
+

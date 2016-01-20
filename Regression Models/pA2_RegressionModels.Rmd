@@ -1,0 +1,154 @@
+---
+title: "Relationship between variables and miles per gallon"
+output: pdf_document
+---
+
+## Executive Summary
+### Task
+
+* “Is an automatic or manual transmission better for MPG”
+* “Quantify the MPG difference between automatic and manual transmission”
+
+#### Exploration Data analysis
+
+The first step of our analysis is to load the `mtcard` dataset and if we are interested we check its data structure by using `str()` and `?mtcard`.
+```{r data, echo = TRUE, results='hide'}
+data("mtcars")
+str(mtcars)
+```
+
+Now we will focus on study the relation between the type of transmission and the number of miles per gallon, `am` (0 = automatic and 1 = manual) and `mpg` variables respectively.
+
+We will plot some relations between the transmission `am` and miles per gallon `mpg` in order to identify it help us to identify any patterns. We will work with `ggplot2`, `GGally` and `lmtest` libraries so we need to load both.`r library(ggplot2); library(GGally); library(lmtest);`
+
+Our first figure will show the values of MPG related to manual and automatic cars but first we will add factor and label it as automatic and manual transmission.
+```{r factors, echo = TRUE}
+mtcars$trans <- factor(mtcars$am, labels = c("automatic", "manual"))
+```
+
+```{r plot1, echo = TRUE}
+  plot1 <- ggplot(mtcars, aes(x=mpg, fill = factor(mtcars$trans))) + 
+  theme_bw(base_size = 8, base_family = "Helvetica") +
+  geom_bar( binwidth = 1, col = 'black', position="dodge") + 
+  labs( fill = 'Transmission') + 
+  labs( title = "Fig 1. Miles per gallon", x = "MPG") 
+```
+
+From the Fig 1. (attached to the appendix) we can identify that manual cars have a higher values on miles per gallon.
+Following the Fig 2. a boxplot for miles per gallon and transmission.
+
+```{r plot2, echo = TRUE}
+plot2 <- ggplot(mtcars, aes(x=factor(mtcars$trans), y=mpg, 
+                            fill = factor(mtcars$trans))) + 
+  theme_bw(base_size = 8, base_family = "Helvetica") + geom_boxplot(adjust = 1) + 
+  geom_jitter(size = 1) + labs( fill = 'Transmission') + 
+  labs( title = 'Fig 2. MPG for transmission', x = 'Transmission', y = 'MPG')
+```
+
+As you can see in both figures attached in the appendix, seems that there is some pattern between MPG and Transmission, anyway this patterns can not be explained just with this evidences. We have to check if it is related to other variables. In order to check this relations we can proceed by plot correlation heatmap which show us in which measure the variables are correlated.
+```
+heatmap(cor(mtcars[1:11]), main= "mtcars dataset heatmap correlation");
+```
+
+From the previous plot Fig 3. a heatmap showing correlation (also attached to the appendix), we notice that there is very little correlation between transmission and miles per gallon, variables `am` and `mpg` respectively.
+
+#####  Regression models - Simple model
+
+Following we will give an estimation of the effect of transmission on miles per gallon. In order to do that we will build a linear model and compute the confidence interval.
+
+```{r simplemodel, echo = TRUE}
+simple_model <-lm(mpg ~ trans, data=mtcars)
+model_coef <- summary(simple_model)$coefficients
+model_coef
+```
+
+```{r intervalsimple, echo = TRUE}
+interval_simple <- model_coef[2,1] + c(-1,1) * 
+                              qt(0.975, df = simple_model$df) * 
+                              model_coef[2,2]
+interval_simple
+```
+
+From the above results we obtained a p-value: $`r model_coef[2,4]`$ and an interval of [$`r interval_simple`$]. Considering the model and the results, compared both transmisions we can conclude that a manual transmission increases on average $`r model_coef[2,1]`$ miles per gallon over the automatic transmission and the 95% confidence interval is [$`r interval_simple`$]
+
+For complet the analysis in a simple model we can plot the residuals and check for heteroskedasticity that suggest the presence of more variables.
+```{r plot3, echo = TRUE}
+plot3 <- ggplot(mtcars, aes(x = trans, y = resid(simple_model), fill = trans)) +
+  theme_bw(base_size = 8, base_family = "Helvetica") + geom_boxplot(adjust = 1) +
+  geom_jitter(size = 1) +
+  labs(title='Fig 4. Residuals - Simple Model',x='Transmission',y='Residuals')
+```
+
+From the result shown in the appendix we can observe a large variability for manual transmission and a possible heteroskedasticity case, presence of large variance in the model. Will be necessary to consider a multivariable model. We can ensure the presence of heteroskedasticity by checking studentized Breusch-Pagan test. For this purpose we will need to load `lmtest` library.
+
+```{r bptest, echo = TRUE}
+bptest(simple_model)
+```
+
+The presence of low p-value $`r bptest(simple_model)$p.value`$ give us strong evidences of possible hidden variables so we will proceed with a multivariable model.
+
+#####  Regression models - Multivariable model
+
+Following the multivariable study:
+```{r multimodel, echo = TRUE}
+multi_model <- lm(mpg ~ ., data = mtcars)
+mmodel_coef <- summary(multi_model)$coefficients
+mmodel_coef
+```
+
+One approach in this multiple model is to perform a backwards elimination, start with all the predictors in the model and remove the variable with the higher P value. We will perform this process to removes the less significant variable till all values are smaller than an specific value in this case `0.05`
+
+Following the iterative process:
+```{r iterative, echo = TRUE, results = "hide"}
+dat <- mtcars[, c("mpg", "wt", "qsec", "am")]
+fit <- lm(mpg ~ . - 1, data = dat)
+summary(fit)$coefficients
+
+dat <- mtcars[,1:11]
+dat <- dat[, names(dat) != "cyl"]; summary(lm(mpg ~ ., data = dat))$coefficients
+dat <- dat[, names(dat) != "vs"]; summary(lm(mpg ~ ., data = dat))$coefficients
+dat <- dat[, names(dat) != "carb"]; summary(lm(mpg ~ ., data = dat))$coefficients
+dat <- dat[, names(dat) != "gear"]; summary(lm(mpg ~ ., data = dat))$coefficients
+dat <- dat[, names(dat) != "drat"]; summary(lm(mpg ~ ., data = dat))$coefficients
+dat <- dat[, names(dat) != "disp"]; summary(lm(mpg ~ ., data = dat))$coefficients
+dat <- dat[, names(dat) != "hp"]; summary(lm(mpg ~ ., data = dat))$coefficients
+```
+
+```{r complexmodel, echo = TRUE}
+complex_model <- lm(mpg ~ . - 1, data = dat)
+model_coef2 <- summary(complex_model)$coefficients
+model_coef2
+```
+
+As is shown above we removed the unrelated variables one by one, the final model just contains `wt`, `qsec` and `am`. We can conclude that the predicting model for the miles per gallon of a vehicle is `y = -3.185455wt + 1.599823qsec + 4.299519am`
+
+```{r intervalcomplex, echo = TRUE}
+interval_complex <- model_coef2[2,1] + c(-1,1) * 
+                              qt(0.975, df = complex_model$df) * 
+                              model_coef2[2,2]
+interval_complex
+```
+
+The adjusted R-squared for the model is $`r  summary(complex_model)$adj.r.squared`$, which is satisfying. And the adjusted 95% confidence interval is [$`r interval_complex`$]. In apendix also included the residuals.
+
+#### Conclusions
+
+The study has shown that there is no correlation between the variables am and mpg that justify that we cannot answer this questions without consider other relevant variables as wt and qsec, weigh and 1/4 mile time for explain the mile per gallon consumption. The better aproximation to both answer is to evaluate the function `y = -3.185455wt + 1.599823qsec + 4.299519am`
+
+## Appendix
+
+```{r ploting, echo = FALSE, fig.width=4, fig.height=4}
+plot1
+plot2
+```
+
+```{r ploting2, echo = FALSE, fig.width=4, fig.height=4}
+par(cex.main=0.5) 
+heatmap(cor(mtcars[1:11]), main="Fig 3. mtcars dataset heatmap correlation", cexRow = 0.6, cexCol = 0.6)
+plot3
+```
+
+```{r ploting3, echo = FALSE, fig.width=6, fig.height=5}
+par(mfrow=c(2, 2))
+plot(complex_model)
+```

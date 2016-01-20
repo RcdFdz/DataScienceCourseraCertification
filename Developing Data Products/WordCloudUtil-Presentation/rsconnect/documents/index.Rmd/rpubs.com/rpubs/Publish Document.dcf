@@ -1,0 +1,7 @@
+name: Publish Document
+account: rpubs
+server: rpubs.com
+bundleId:
+        https://api.rpubs.com/api/v1/document/137498/6081c446eb544b1bbf904a87b46d345d
+url: http://rpubs.com/RFERNANDEZ/137498
+when: 1451214649.83475

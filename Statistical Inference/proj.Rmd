@@ -1,0 +1,200 @@
+---
+output: html_document
+---
+# Exponential Distribution vs Central Limit Theorem
+## Statistical Inference
+#### Ricardo Fernandez 
+#### 2015-10-21
+
+### Description and goals
+Investigate the exponential distribution in R and compare it with the Central Limit Theorem. The exponential distribution can be simulated in R with rexp(n, lambda) where lambda is the rate parameter. The mean of exponential distribution is 1/lambda and the standard deviation is also 1/lambda. Using lambda = 0.2 for all of the simulations this paper will focus on investigate the distribution of averages of 40 exponentials. 
+
+Will be Illustrated via simulation and associated explanatory text the properties of the distribution of the mean of 40 exponentials.
+
+For this aim this paper will be divided in 3 topics:
+
+1. Show the sample mean and compare it to the theoretical mean of the distribution.
+2. Show how variable the sample is (via variance) and compare it to the theoretical variance of the distribution.
+3. Show that the distribution is approximately normal.
+
+### Simulation
+In order to create the dataset we will run a serie of 1000 simulations with 40 sampling size (observations) and as has been mentioned before the expoential distribution set to ```rexp(40, 0.2)```.
+
+Following the code:
+
+```
+# ggplot plotting library 
+library(ggplot2) 
+
+# defined values for the simulation
+simulations <- 1000
+lambda <- 0.2
+observations <- 40
+
+# the seed need to be set so for each generation we will generated 
+# the same randome values for the graph.
+
+set.seed(108)
+
+# Random Simulation
+sample = rep(0,simulations)
+for (i in 1:simulations) sample[i] = mean(rexp(observations,rate=lambda))
+```
+For an easier overview we can plot the sample:
+
+```
+# sample plot with histogram chart, bandwidth set between 0.1 - 0.5 show the
+# distribution correctly.
+ggp <- ggplot() + aes(sample) + 
+  geom_histogram(binwidth=0.25, colour="black", fill="lightblue") + theme_bw() +
+  labs(x = "mean", y = expression("Density")) + 
+  labs(title=expression("Exponential distribution (1000 Simulation, 40 Samples, λ = 0.2)")) 
+print(ggp)
+```
+And the histogram ploted:
+
+![histogram](/Users/ricardofernandez/Projects/DataScience/datasciencecoursera/Rplot.png)
+
+### Sample mean and the theoretical mean of the distribution
+
+As is shown bellow the value of the sample mean is `5.058108` and the theoretical is `5`. The mean of exponential distribution and the theoretical mean of the distribution are quite close.
+
+From the sample:
+
+```
+# actual mean of the sample data
+mean_sample <- mean(sample)
+```
+
+```
+> mean_sample
+[1] 5.058108
+```
+Theoretical:
+
+```
+# theoretical mean
+theoretical_mean <- 1/lambda 
+```
+
+```
+> theoretical_mean
+[1] 5
+```
+
+### Variability, sample variance compared to the theoretical variance of the distribution
+
+As is shown bellow the value of the sample variance is `0.6435606` and the theoretical is `0.625`, this results implies that the mean from the sample is very close to the theoretical mean of normal data.
+
+From the sample:
+
+```
+# variance for the sample data 
+sample_variance <- var(sample)
+```
+
+```
+> sample_variance 
+[1] 0.6435606
+```
+Theoretical:
+
+```
+# theorical_variance
+theoretical_variance <- (1/lambda)^2/observations
+```
+```
+> theoretical_variance 
+[1] 0.625
+```
+
+Bellow a graphical overview of both means and variances and its code:
+
+```
+ggp <- ggplot() + aes(sample) + 
+  geom_histogram(binwidth=0.25, colour="black", fill="lightblue") + theme_bw() + 
+  # Vertical lines for Sample and Theoretical Mean and Variance
+  geom_vline(xintercept = sample_mean, colour="green", linetype = "dashed", size = 1.5) +
+  geom_vline(xintercept = theoretical_mean, colour="red", linetype = "dashed", size = 1.5) +
+  geom_vline(xintercept = sample_mean+sample_variance, colour="green", linetype = "dotted", size = 1.5) +
+  geom_vline(xintercept = sample_mean-sample_variance, colour="green", linetype = "dotted", size = 1.5) +
+  geom_vline(xintercept = theoretical_mean+theoretical_variance, colour="red", linetype = "dotted", size = 1.5) +
+  geom_vline(xintercept = theoretical_mean-theoretical_variance, colour="red", linetype = "dotted", size = 1.5) +
+  labs(x = "mean", y = expression("Density")) + 
+  labs(title=expression("Exponential distribution (1000 Simulation, 40 Samples, λ = 0.2)"))  
+print(ggp)
+```
+![histogram](/Users/ricardofernandez/Projects/DataScience/datasciencecoursera/Rplot02.png)
+
+## Distribution approximately normal
+
+In order to prove that the distribution is approximately normal, first we will create a histogram with a normal distribution and see how fits with the sample.
+Bellow the code and graph:
+
+```
+## Distribution approximately normalplotdata <- data.frame(sim_mean);
+plotdata <- data.frame(sample)
+ggp <- ggplot(plotdata, aes(x =sample)) + 
+  geom_histogram(aes(y=..density..), binwidth=0.25, colour="black", fill = "lightblue") +
+  geom_vline(xintercept=theoretical_mean,size=1.0, color="green",linetype ="longdash") +
+  geom_vline(xintercept=sample_mean,size=1.0, color="red",linetype = "longdash") +
+  stat_function(fun=dnorm,args=list( mean=theoretical_mean, sd=sqrt(theoretical_variance)),color = "green", size = 1.0) +
+  stat_function(fun=dnorm,args=list( mean=sample_mean, sd=sqrt(sample_variance)),color = "red", size = 1.0) +
+  labs(title=expression("Exponential distribution (1000 Simulation, 40 Samples, λ = 0.2)"), x = "mean", y = expression("Density"))
+print(ggp)
+```
+![histogram](/Users/ricardofernandez/Projects/DataScience/datasciencecoursera/Rplot03.png)
+
+Based on the above graph, we can conclude that the distribution of the sample mean can be considered as a normal distributed.
+
+### Confidence interval
+Following we will compare the 95% confidence interval for both and prove that they are quite close.
+From the sample:
+
+```
+sample_ci <- round (mean(sample) + c(-1,1)*1.96*sd(sample)/sqrt(observations),3)
+```
+```
+> sample_ci
+[1] 4.809 5.307
+
+```
+Theoretical:
+
+```
+theoretical_ci <- theoretical_mean + c(-1,1)*1.96*sqrt(theoretical_variance)/sqrt(observations)
+```
+```
+> theoretical_ci
+[1] 4.755 5.245
+```
+Based on the results we can conclude that the confidence interval for the sample mean `[4.809, 5.307]` and the theoretical confidence interval `[4.755, 5.245]` are quite close.
+
+### Normal Q-Q Plot Quantiles
+Finally the Normal Q-Q plot for quantiles that shows the density computed using the histogram and the normal density plotted with theoretical mean and variance values.
+
+```
+# Normal Q-Q Plot
+qqnorm(sample) 
+qqline(sample)
+```
+
+![histogram](/Users/ricardofernandez/Projects/DataScience/datasciencecoursera/Rplot04.png)
+
+### Concusions
+
+Considering the above results for:
+
+* Mean 
+	* Sample: 5.058108
+	* Theoretical: 5
+* Variance
+	* Sample: 0.6435606
+	* Theoretical: 6.25	
+* Distribution
+* confidence interval
+	* Sample: [4.809, 5.307]
+	* Theoretical: [4.755, 5.245]
+* Normal Q-Q Plot 
+
+We can conclude that the distribution of the sample data is approximately normaly distributed.
